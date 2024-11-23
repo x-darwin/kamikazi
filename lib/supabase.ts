@@ -4,20 +4,22 @@ import { Database } from './database.types';
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
+// Create a custom fetch implementation with correct types
+const customFetch = (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+  return fetch(input, {
+    ...init,
+    cache: 'no-store',
+  });
+};
+
 export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   auth: {
-    persistSession: true, // Enable session persistence
-    autoRefreshToken: true,
-    detectSessionInUrl: false
-  },
-  db: {
-    schema: 'public'
+    persistSession: false,
+    autoRefreshToken: false,
   },
   global: {
-    headers: {
-      'Cache-Control': 'public, max-age=300, stale-while-revalidate=600'
-    }
-  }
+    fetch: customFetch,
+  },
 });
 
 export type OrderStatus = 
