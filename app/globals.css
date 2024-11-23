@@ -1,0 +1,131 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 0 0% 100%;
+  --foreground: 220 10% 10%;
+  --card: 17 100% 97%;
+  --card-foreground: 220 100% 10%;
+  --popover: 0 0% 98%;
+  --popover-foreground: 220 10% 10%;
+  --primary: 20 100% 50%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 20 20% 97%;
+  --secondary-foreground: 20 100% 50%;
+  --muted: 20 20% 96%;
+  --muted-foreground: 220 10% 45%;
+  --accent: 20 100% 50%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 220 20% 94%;
+  --input: 220 20% 94%;
+  --ring: 20 100% 50%;
+  --radius: 0.75rem;
+}
+
+.dark {
+  --background: 0 0% 0%;
+  --foreground: 0 0% 100%;
+  --card: 0 0% 3%;
+  --card-foreground: 0 0% 100%;
+  --popover: 0 0% 3%;
+  --popover-foreground: 0 0% 100%;
+  --primary: 20 100% 50%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 0 0% 5%;
+  --secondary-foreground: 0 0% 100%;
+  --muted: 0 0% 5%;
+  --muted-foreground: 0 0% 70%;
+  --accent: 20 100% 50%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 0 0% 10%;
+  --input: 0 0% 10%;
+  --ring: 20 100% 50%;
+}
+
+@layer base {
+  * {
+    @apply border-[hsl(var(--border))];
+  }
+  
+  html.dark {
+    @apply transition-colors duration-300;
+  }
+  
+  body {
+    @apply bg-background text-foreground antialiased min-h-screen flex flex-col transition-colors duration-300;
+  }
+  
+  main {
+    @apply flex-grow;
+  }
+}
+
+@layer components {
+  .glassmorphism {
+    @apply bg-card border border-border rounded-lg shadow-sm;
+  }
+
+  .hover-lift {
+    @apply transition-transform duration-300 hover:-translate-y-1;
+  }
+
+  .hover-glow {
+    @apply transition-shadow duration-300 hover:shadow-lg hover:shadow-primary/5;
+  }
+
+  .section-heading {
+    @apply relative inline-block;
+  }
+
+  .section-heading::after {
+    @apply content-[''] absolute bottom-0 left-0 w-full h-[2px] bg-gradient-to-r from-primary/50 to-transparent;
+  }
+}
+
+@layer utilities {
+  .container {
+    @apply px-4 sm:px-6 lg:px-8 mx-auto max-w-6xl;
+  }
+
+  .bg-grid-white {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32' width='32' height='32' fill='none' stroke='rgb(255 255 255 / 0.04)'%3e%3cpath d='M0 .5H31.5V32'/%3e%3c/svg%3e");
+  }
+
+  .bg-grid-black {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32' width='32' height='32' fill='none' stroke='rgb(0 0 0 / 0.04)'%3e%3cpath d='M0 .5H31.5V32'/%3e%3c/svg%3e");
+  }
+
+  @keyframes infinite-scroll {
+    from { transform: translateX(0); }
+    to { transform: translateX(calc(-50% - 2rem)); }
+  }
+
+  .animate-infinite-scroll {
+    animation: infinite-scroll 30s linear infinite;
+    width: max-content;
+  }
+
+  .brand-logo {
+    @apply brightness-0 opacity-60 dark:brightness-0 dark:invert dark:opacity-80 transition-opacity duration-300 hover:opacity-100;
+  }
+
+  @keyframes scaleIn {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  .section-gradient {
+    @apply bg-gradient-to-b from-background via-background/50 to-background;
+  }
+}
