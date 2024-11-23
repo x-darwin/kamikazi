@@ -1,5 +1,4 @@
 import { supabase } from './supabase';
-import type { Database } from './database.types';
 
 export type PaymentConfig = {
   id?: number;
@@ -67,21 +66,26 @@ export const updatePaymentConfig = async (config: Partial<PaymentConfig>): Promi
     updated_at: new Date().toISOString()
   };
 
-  let query;
+  let response;
+  
   if (existing) {
-    query = supabase
+    response = await supabase
       .from('payment_config')
       .update(updates)
-      .eq('id', existing.id);
+      .eq('id', existing.id)
+      .select()
+      .single();
   } else {
-    query = supabase
+    response = await supabase
       .from('payment_config')
-      .insert(updates);
+      .insert({ ...updates, created_at: new Date().toISOString() })
+      .select()
+      .single();
   }
 
-  const { data, error } = await query.select().single();
+  if (response.error) throw response.error;
 
-  if (error) throw error;
+  const { data } = response;
 
   return {
     id: data.id,

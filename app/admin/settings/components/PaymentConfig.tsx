@@ -33,13 +33,7 @@ export function PaymentConfig() {
       });
       
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Invalid response' }));
-        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-      }
-
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        throw new Error('Invalid response type');
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       const data = await response.json();
@@ -78,17 +72,16 @@ export function PaymentConfig() {
         },
         body: JSON.stringify({
           isEnabled: checked,
+          activeGateway,
+          sumupKey,
+          sumupMerchantEmail,
+          stripePublishableKey,
+          stripeSecretKey,
         }),
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Invalid response' }));
-        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-      }
-
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        throw new Error('Invalid response type');
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       const updatedConfig = await response.json();
@@ -113,27 +106,8 @@ export function PaymentConfig() {
   };
 
   const saveConfig = async () => {
-    if (!isEnabled) {
-      toast({
-        title: 'Error',
-        description: 'Enable payment processing to update the configuration',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    const validateGatewayConfig = () => {
-      if (activeGateway === 'sumup' && (!sumupKey.trim() || !sumupMerchantEmail.trim())) {
-        throw new Error('SumUp API key and merchant email are required');
-      }
-      if (activeGateway === 'stripe' && (!stripePublishableKey.trim() || !stripeSecretKey.trim())) {
-        throw new Error('Stripe publishable key and secret key are required');
-      }
-    };
-
     try {
       setIsSaving(true);
-      validateGatewayConfig();
 
       const updates = {
         isEnabled,
@@ -154,13 +128,8 @@ export function PaymentConfig() {
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Invalid response' }));
+        const errorData = await response.json();
         throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-      }
-
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        throw new Error('Invalid response type');
       }
 
       const updatedConfig = await response.json();

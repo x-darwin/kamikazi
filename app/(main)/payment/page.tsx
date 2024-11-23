@@ -34,7 +34,7 @@ export default function PaymentPage() {
   };
 
   return (
-    <main className="min-h-screen pt-24 pb-16">
+    <div className="min-h-screen pt-24 pb-16">
       <div className="container mx-auto px-4">
         <div className="max-w-2xl mx-auto space-y-8">
           <Card className="glassmorphism border-0">
@@ -63,6 +63,6 @@ export default function PaymentPage() {
           </Card>
         </div>
       </div>
-    </main>
+    </div>
   );
 }

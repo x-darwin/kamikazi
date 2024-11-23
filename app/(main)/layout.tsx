@@ -5,7 +5,6 @@ import { Footer } from '@/components/footer';
 import { useEffect } from 'react';
 import { PaymentGatewayProvider } from '@/components/payment/payment-gateway-context';
 
-
 export default function MainLayout({
   children,
 }: {
@@ -27,11 +26,10 @@ export default function MainLayout({
   return (
     <>
       <PaymentGatewayProvider>
-      {children}
+        <Navbar />
+        {children}
+        <Footer />
       </PaymentGatewayProvider>
-      <Navbar />
-      <main className="flex-grow relative z-10">{children}</main>
-      <Footer />
     </>
   );
 }

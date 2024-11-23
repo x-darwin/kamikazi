@@ -4,38 +4,20 @@ import { getPaymentConfig, updatePaymentConfig } from '@/lib/payment-config';
 
 export async function GET(request: NextRequest) {
   try {
-    // Add proper headers
-    const response = new NextResponse();
-    response.headers.set('Content-Type', 'application/json');
-
     if (!(await verifyAuth(request))) {
       return NextResponse.json(
         { error: 'Unauthorized' }, 
-        { 
-          status: 401,
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        }
+        { status: 401 }
       );
     }
 
     const config = await getPaymentConfig();
-    return NextResponse.json(config, {
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    });
+    return NextResponse.json(config);
   } catch (error) {
     console.error('Failed to get payment configuration:', error);
     return NextResponse.json(
       { error: 'Failed to get payment configuration' },
-      { 
-        status: 500,
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      }
+      { status: 500 }
     );
   }
 }
@@ -60,24 +42,34 @@ export async function PUT(request: NextRequest) {
     const body = await request.json();
     
     // Validate the request body
-    if (typeof body.isEnabled !== 'boolean') {
+    if (typeof body.isEnabled !== 'boolean' && !body.activeGateway) {
       return NextResponse.json(
-        { error: 'Invalid isEnabled value' },
+        { error: 'Invalid request body' },
         { status: 400 }
       );
     }
 
     const updates = {
       isEnabled: body.isEnabled,
-      sumupKey: body.sumupKey?.trim() || undefined,
-      sumupMerchantEmail: body.sumupMerchantEmail?.trim() || undefined,
+      activeGateway: body.activeGateway,
+      sumupKey: body.sumupKey?.trim(),
+      sumupMerchantEmail: body.sumupMerchantEmail?.trim(),
+      stripePublishableKey: body.stripePublishableKey?.trim(),
+      stripeSecretKey: body.stripeSecretKey?.trim(),
     };
 
-    // Only validate credentials if they are being updated
-    if (updates.sumupKey !== undefined || updates.sumupMerchantEmail !== undefined) {
+    // Validate gateway-specific credentials
+    if (updates.activeGateway === 'stripe') {
+      if (!updates.stripePublishableKey || !updates.stripeSecretKey) {
+        return NextResponse.json(
+          { error: 'Stripe publishable key and secret key are required' },
+          { status: 400 }
+        );
+      }
+    } else if (updates.activeGateway === 'sumup') {
       if (!updates.sumupKey || !updates.sumupMerchantEmail) {
         return NextResponse.json(
-          { error: 'Both SumUp API key and merchant email are required when updating credentials' },
+          { error: 'SumUp API key and merchant email are required' },
           { status: 400 }
         );
       }
@@ -85,12 +77,7 @@ export async function PUT(request: NextRequest) {
 
     const updatedConfig = await updatePaymentConfig(updates);
     
-    return new NextResponse(JSON.stringify(updatedConfig), {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
+    return NextResponse.json(updatedConfig);
   } catch (error) {
     console.error('Failed to update payment configuration:', error);
     return NextResponse.json(
