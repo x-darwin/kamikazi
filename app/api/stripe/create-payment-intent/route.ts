@@ -11,9 +11,6 @@ export async function POST(req: Request) {
       amount,
       currency = 'eur',
       clientData,
-      selectedPackage,
-      selectedFeatures,
-      couponCode
     } = body;
 
     const headersList = await headers();
@@ -29,16 +26,15 @@ export async function POST(req: Request) {
 
     const stripe = await getStripe();
 
-    // Create a PaymentIntent
+    // Create a PaymentIntent with minimal metadata
     const paymentIntent = await stripe.paymentIntents.create({
       amount: Math.round(amount * 100), // Convert to cents
       currency,
-      payment_method_types: ['card'],
+      automatic_payment_methods: {
+        enabled: true,
+      },
       metadata: {
         checkout_reference: `ORDER-${Date.now()}`,
-        package: selectedPackage?.name,
-        features: selectedFeatures?.join(','),
-        coupon: couponCode || '',
         client_email: clientData.email,
         client_name: clientData.name,
         client_phone: clientData.phone,
@@ -57,10 +53,8 @@ export async function POST(req: Request) {
       client_name: clientData.name,
       client_phone: clientData.phone,
       client_country: clientData.country,
-      description: `Payment for ${selectedPackage?.name}`,
       payment_type: 'card',
       payment_method: 'stripe',
-      coupon_code: couponCode,
       ip_address: ip,
       device_info: deviceInfo,
       created_at: new Date().toISOString(),
