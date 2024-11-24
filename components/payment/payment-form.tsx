@@ -11,6 +11,7 @@ import dynamic from 'next/dynamic';
 import { usePaymentGateway } from './payment-gateway-context';
 import { Elements } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
+import { useTheme } from "next-themes";
 
 const ThreeDSDialog = dynamic(() => import("./ThreeDSDialog").then(mod => ({ default: mod.ThreeDSDialog })), {
   ssr: false
@@ -106,8 +107,34 @@ export const PaymentForm = memo(function PaymentForm({ onSubmit, initialPackage 
   const router = useRouter();
   const posthog = usePostHog();
   const { activeGateway, stripePublishableKey } = usePaymentGateway();
-
+  const { theme } = useTheme();
+  const [stripePromise, setStripePromise] = useState<Promise<Stripe | null> | null>(null);
   const selectedPackage = packages.find((pkg) => pkg.id === selectedPackageId);
+
+
+  useEffect(() => {
+    if (activeGateway === 'stripe' && stripePublishableKey) {
+      setStripePromise(loadStripe(stripePublishableKey));
+    }
+  }, [activeGateway, stripePublishableKey]);
+
+  const appearance: Appearance = {
+    theme: theme === 'dark' ? 'night' : 'stripe',
+    variables: {
+      colorPrimary: 'hsl(20, 100%, 50%)',
+      colorBackground: theme === 'dark' ? '#000000' : '#ffffff',
+      colorText: theme === 'dark' ? '#ffffff' : '#1a1a1a',
+      colorDanger: '#dc2626',
+      fontFamily: 'Inter var, sans-serif',
+      borderRadius: '8px',
+      spacingUnit: '4px',
+    },
+  };
+
+  const options: StripeElementsOptions = {
+    appearance,
+    clientSecret,
+  };
 
   const removeCoupon = useCallback(() => {
     setCouponCode('');
@@ -343,16 +370,14 @@ export const PaymentForm = memo(function PaymentForm({ onSubmit, initialPackage 
             onCountryChange={setSelectedCountry}
           />
 
-          {activeGateway === 'stripe' && stripePromise ? (
-            clientSecret ? (
-              <Elements stripe={stripePromise} options={{ clientSecret }}>
-                <StripePaymentForm />
-              </Elements>
-            ) : (
-              <div className="flex items-center justify-center p-8">
-                <Skeleton className="h-[200px] w-full" />
-              </div>
-            )
+          {activeGateway === 'stripe' && stripePromise && clientSecret ? (
+            <Elements stripe={stripePromise} options={options}>
+              <StripePaymentForm />
+            </Elements>
+          ) : activeGateway === 'stripe' ? (
+            <div className="flex items-center justify-center p-8">
+              <Skeleton className="h-[200px] w-full" />
+            </div>
           ) : (
             <CardDetails />
           )}
