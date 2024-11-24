@@ -9,10 +9,8 @@ import { useRouter } from "next/navigation";
 import { usePostHog } from 'posthog-js/react';
 import dynamic from 'next/dynamic';
 import { usePaymentGateway } from './payment-gateway-context';
-import { StripePaymentProvider } from './stripe-payment-provider';
-import { loadStripe } from '@stripe/stripe-js';
 import { Elements } from '@stripe/react-stripe-js';
-import { isValidCardNumber, isValidExpiryDate, isValidCVV, isValidEmail, isValidPhone, isValidName } from "./card-validation";
+import { loadStripe } from '@stripe/stripe-js';
 
 const ThreeDSDialog = dynamic(() => import("./ThreeDSDialog").then(mod => ({ default: mod.ThreeDSDialog })), {
   ssr: false
@@ -219,29 +217,6 @@ export const PaymentForm = memo(function PaymentForm({ onSubmit, initialPackage 
     );
   }, []);
 
-  const validateForm = (formData: FormData) => {
-    const errors: string[] = [];
-    
-    const email = formData.get("email") as string;
-    const name = formData.get("name") as string;
-    const phone = formData.get("phone") as string;
-
-    if (!isValidEmail(email)) {
-      errors.push("Invalid email address");
-    }
-    if (!isValidName(name)) {
-      errors.push("Invalid name");
-    }
-    if (!isValidPhone(phone)) {
-      errors.push("Invalid phone number");
-    }
-
-    return {
-      isValid: errors.length === 0,
-      errors
-    };
-  };
-
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     onSubmit(e);
@@ -249,17 +224,12 @@ export const PaymentForm = memo(function PaymentForm({ onSubmit, initialPackage 
 
     try {
       const formData = new FormData(e.currentTarget);
-      
-      const { isValid, errors } = validateForm(formData);
-      
-      if (!isValid) {
-        toast({
-          title: "Validation Error",
-          description: errors.join("\n"),
-          variant: "destructive",
-        });
-        return;
-      }
+      const clientData = {
+        email: formData.get("email") as string,
+        phone: formData.get("phone") as string,
+        name: formData.get("name") as string,
+        country: selectedCountry,
+      };
 
       const lastAttempt = localStorage.getItem('lastPaymentAttempt');
       const now = Date.now();
@@ -274,11 +244,42 @@ export const PaymentForm = memo(function PaymentForm({ onSubmit, initialPackage 
       localStorage.setItem('lastPaymentAttempt', now.toString());
 
       if (activeGateway === 'stripe') {
-        await handleStripePayment(formData);
-      } else {
-        await handleSumUpPayment(formData);
-      }
+        const total = calculateTotal();
+        if (total < 1) {
+          throw new Error("Order amount must be at least 1 EUR");
+        }
 
+        const response = await fetch("/api/stripe/create-payment-intent", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            amount: total,
+            currency: "eur",
+            clientData,
+          }),
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || "Failed to create payment intent");
+        }
+
+        const { clientSecret: secret, checkout_reference } = await response.json();
+        setClientSecret(secret);
+
+        if (checkout_reference) {
+          localStorage.setItem('lastOrderReference', checkout_reference);
+        }
+      } else {
+        // Handle SumUp payment
+        const cardNumber = formData.get("card") as string;
+        const expiry = formData.get("expiry") as string;
+        const cvv = formData.get("cvv") as string;
+
+        // Add SumUp payment logic here
+      }
     } catch (error) {
       toast({
         title: "Payment Failed",
@@ -295,49 +296,9 @@ export const PaymentForm = memo(function PaymentForm({ onSubmit, initialPackage 
     }
   };
 
-  const handleStripePayment = async (formData: FormData) => {
-    const total = calculateTotal();
-    if (total < 1) {
-      throw new Error("Order amount must be at least 1 EUR");
-    }
+  const stripePromise = stripePublishableKey ? loadStripe(stripePublishableKey) : null;
 
-    const clientData = {
-      email: formData.get("email"),
-      phone: formData.get("phone"),
-      name: formData.get("name"),
-      country: selectedCountry,
-    };
-
-    const response = await fetch("/api/stripe/create-payment-intent", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        amount: total,
-        currency: "eur",
-        clientData,
-      }),
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || "Failed to create payment intent");
-    }
-
-    const { clientSecret: secret, checkout_reference } = await response.json();
-    setClientSecret(secret);
-
-    if (checkout_reference) {
-      localStorage.setItem('lastOrderReference', checkout_reference);
-    }
-  };
-
-  const handleSumUpPayment = async (formData: FormData) => {
-    // SumUp payment logic remains unchanged
-  };
-
-  const paymentForm = (
+  return (
     <div className="max-w-3xl mx-auto space-y-8">
       <Suspense fallback={<ComponentSkeleton />}>
         <PackageSelection
@@ -382,10 +343,16 @@ export const PaymentForm = memo(function PaymentForm({ onSubmit, initialPackage 
             onCountryChange={setSelectedCountry}
           />
 
-          {activeGateway === 'stripe' && clientSecret && stripePublishableKey ? (
-            <Elements stripe={loadStripe(stripePublishableKey)} options={{ clientSecret }}>
-              <StripePaymentForm />
-            </Elements>
+          {activeGateway === 'stripe' && stripePromise ? (
+            clientSecret ? (
+              <Elements stripe={stripePromise} options={{ clientSecret }}>
+                <StripePaymentForm />
+              </Elements>
+            ) : (
+              <div className="flex items-center justify-center p-8">
+                <Skeleton className="h-[200px] w-full" />
+              </div>
+            )
           ) : (
             <CardDetails />
           )}
@@ -415,6 +382,4 @@ export const PaymentForm = memo(function PaymentForm({ onSubmit, initialPackage 
       </section>
     </div>
   );
-
-  return paymentForm;
 });
