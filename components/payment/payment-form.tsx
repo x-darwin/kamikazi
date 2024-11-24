@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState, useCallback, memo } from 'react';
+import { Suspense, useState, useCallback, memo, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Icons } from "@/components/icons";
 import { useToast } from "@/hooks/use-toast";
@@ -10,7 +10,7 @@ import { usePostHog } from 'posthog-js/react';
 import dynamic from 'next/dynamic';
 import { usePaymentGateway } from './payment-gateway-context';
 import { Elements } from '@stripe/react-stripe-js';
-import { loadStripe } from '@stripe/stripe-js';
+import { loadStripe, Stripe, StripeElementsOptions, Appearance } from '@stripe/stripe-js';
 import { useTheme } from "next-themes";
 
 const ThreeDSDialog = dynamic(() => import("./ThreeDSDialog").then(mod => ({ default: mod.ThreeDSDialog })), {
@@ -102,19 +102,18 @@ export const PaymentForm = memo(function PaymentForm({ onSubmit, initialPackage 
   const [isProcessing, setIsProcessing] = useState(false);
   const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
   const [selectedCountry, setSelectedCountry] = useState("");
-  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [clientSecret, setClientSecret] = useState<string | undefined>(undefined);
   const { toast } = useToast();
   const router = useRouter();
   const posthog = usePostHog();
   const { activeGateway, stripePublishableKey } = usePaymentGateway();
   const { theme } = useTheme();
-  const [stripePromise, setStripePromise] = useState<Promise<Stripe | null> | null>(null);
+  const [stripeInstance, setStripeInstance] = useState<Promise<Stripe | null> | null>(null);
   const selectedPackage = packages.find((pkg) => pkg.id === selectedPackageId);
-
 
   useEffect(() => {
     if (activeGateway === 'stripe' && stripePublishableKey) {
-      setStripePromise(loadStripe(stripePublishableKey));
+      setStripeInstance(loadStripe(stripePublishableKey));
     }
   }, [activeGateway, stripePublishableKey]);
 
@@ -133,7 +132,7 @@ export const PaymentForm = memo(function PaymentForm({ onSubmit, initialPackage 
 
   const options: StripeElementsOptions = {
     appearance,
-    clientSecret,
+    clientSecret: clientSecret || undefined,
   };
 
   const removeCoupon = useCallback(() => {
@@ -323,8 +322,6 @@ export const PaymentForm = memo(function PaymentForm({ onSubmit, initialPackage 
     }
   };
 
-  const stripePromise = stripePublishableKey ? loadStripe(stripePublishableKey) : null;
-
   return (
     <div className="max-w-3xl mx-auto space-y-8">
       <Suspense fallback={<ComponentSkeleton />}>
@@ -370,8 +367,8 @@ export const PaymentForm = memo(function PaymentForm({ onSubmit, initialPackage 
             onCountryChange={setSelectedCountry}
           />
 
-          {activeGateway === 'stripe' && stripePromise && clientSecret ? (
-            <Elements stripe={stripePromise} options={options}>
+          {activeGateway === 'stripe' && stripeInstance && clientSecret ? (
+            <Elements stripe={stripeInstance} options={options}>
               <StripePaymentForm />
             </Elements>
           ) : activeGateway === 'stripe' ? (
