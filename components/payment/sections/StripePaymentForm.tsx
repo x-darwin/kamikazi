@@ -4,6 +4,7 @@ import { PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js"
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
 
 export function StripePaymentForm() {
   const stripe = useStripe();
@@ -28,19 +29,18 @@ export function StripePaymentForm() {
     setIsLoading(true);
 
     try {
-      const result = await stripe.confirmPayment({
+      const { error } = await stripe.confirmPayment({
         elements,
         confirmParams: {
           return_url: `${window.location.origin}/success`,
         },
-        redirect: 'if_required',
       });
 
-      if (result.error) {
-        if (result.error.type === "card_error" || result.error.type === "validation_error") {
+      if (error) {
+        if (error.type === "card_error" || error.type === "validation_error") {
           toast({
             title: "Payment Failed",
-            description: result.error.message,
+            description: error.message,
             variant: "destructive",
           });
         } else {
@@ -51,10 +51,8 @@ export function StripePaymentForm() {
           });
         }
         router.push("/failed");
-      } else {
-        // Payment successful
-        router.push("/success");
       }
+      // Payment successful - redirect will be handled by Stripe
     } catch (error) {
       console.error("Payment confirmation error:", error);
       toast({
@@ -69,8 +67,32 @@ export function StripePaymentForm() {
   };
 
   return (
-    <div className="space-y-4">
-      <PaymentElement />
+    <div className="space-y-6">
+      <PaymentElement 
+        options={{
+          layout: "tabs",
+          appearance: {
+            theme: 'stripe',
+            variables: {
+              colorPrimary: 'hsl(var(--primary))',
+              colorBackground: 'hsl(var(--background))',
+              colorText: 'hsl(var(--foreground))',
+              colorDanger: 'hsl(var(--destructive))',
+              fontFamily: 'var(--font-inter)',
+              borderRadius: '0.5rem',
+              spacingUnit: '4px',
+            },
+          },
+        }}
+      />
+      <Button 
+        type="submit"
+        disabled={!stripe || isLoading}
+        className="w-full"
+        onClick={handleSubmit}
+      >
+        {isLoading ? "Processing..." : "Pay Now"}
+      </Button>
     </div>
   );
 }
