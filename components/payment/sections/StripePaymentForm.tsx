@@ -5,22 +5,46 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import type { Appearance, StripeElementsOptions } from "@stripe/stripe-js";
-import { useTheme } from "next-themes";
+import type { StripePaymentElementOptions } from '@stripe/stripe-js';
 
 export function StripePaymentForm() {
   const stripe = useStripe();
   const elements = useElements();
   const [isLoading, setIsLoading] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
   const router = useRouter();
   const { toast } = useToast();
-  const { theme } = useTheme();
 
   useEffect(() => {
-    if (!stripe || !elements) {
+    if (!stripe) {
       return;
     }
-  }, [stripe, elements]);
+
+    const clientSecret = new URLSearchParams(window.location.search).get(
+      "payment_intent_client_secret"
+    );
+
+    if (!clientSecret) {
+      return;
+    }
+
+    stripe.retrievePaymentIntent(clientSecret).then(({ paymentIntent }) => {
+      switch (paymentIntent?.status) {
+        case "succeeded":
+          setMessage("Payment succeeded!");
+          break;
+        case "processing":
+          setMessage("Your payment is processing.");
+          break;
+        case "requires_payment_method":
+          setMessage("Please provide your payment details.");
+          break;
+        default:
+          setMessage("Something went wrong.");
+          break;
+      }
+    });
+  }, [stripe]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,7 +79,6 @@ export function StripePaymentForm() {
         }
         router.push("/failed");
       }
-      // Payment successful - redirect will be handled by Stripe
     } catch (error) {
       console.error("Payment confirmation error:", error);
       toast({
@@ -69,53 +92,17 @@ export function StripePaymentForm() {
     }
   };
 
-  const appearance: Appearance = {
-    theme: theme === 'dark' ? 'night' : 'stripe',
-    variables: {
-      colorPrimary: 'hsl(20, 100%, 50%)',
-      colorBackground: theme === 'dark' ? '#000000' : '#ffffff',
-      colorText: theme === 'dark' ? '#ffffff' : '#1a1a1a',
-      colorDanger: '#dc2626',
-      fontFamily: 'Inter var, sans-serif',
-      borderRadius: '8px',
-      spacingUnit: '4px',
-    },
-    rules: {
-      '.Input': {
-        border: '1px solid var(--border-color)',
-        boxShadow: 'none',
-      },
-      '.Input:focus': {
-        border: '1px solid hsl(20, 100%, 50%)',
-        boxShadow: '0 0 0 1px hsl(20, 100%, 50%)',
-      },
-      '.Label': {
-        fontWeight: '500',
-      },
-    },
-  };
-
-  const paymentElementOptions: StripeElementsOptions = {
+  const paymentElementOptions: StripePaymentElementOptions = {
     layout: {
       type: 'tabs',
       defaultCollapsed: false,
     },
-    fields: {
-      billingDetails: {
-        name: 'auto',
-        email: 'auto',
-        phone: 'auto',
-      },
-    },
-    business: {
-      name: 'StreamVault',
-    },
-    appearance,
   };
 
   return (
     <div className="space-y-6">
       <PaymentElement options={paymentElementOptions} />
+      {message && <div className="text-sm text-muted-foreground">{message}</div>}
       <Button 
         type="submit"
         disabled={!stripe || isLoading}
