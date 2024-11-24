@@ -5,6 +5,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
+import type { Appearance, StripeElementsOptions } from "@stripe/stripe-js";
+import { useTheme } from "next-themes";
 
 export function StripePaymentForm() {
   const stripe = useStripe();
@@ -12,6 +14,7 @@ export function StripePaymentForm() {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
+  const { theme } = useTheme();
 
   useEffect(() => {
     if (!stripe || !elements) {
@@ -66,25 +69,53 @@ export function StripePaymentForm() {
     }
   };
 
+  const appearance: Appearance = {
+    theme: theme === 'dark' ? 'night' : 'stripe',
+    variables: {
+      colorPrimary: 'hsl(20, 100%, 50%)',
+      colorBackground: theme === 'dark' ? '#000000' : '#ffffff',
+      colorText: theme === 'dark' ? '#ffffff' : '#1a1a1a',
+      colorDanger: '#dc2626',
+      fontFamily: 'Inter var, sans-serif',
+      borderRadius: '8px',
+      spacingUnit: '4px',
+    },
+    rules: {
+      '.Input': {
+        border: '1px solid var(--border-color)',
+        boxShadow: 'none',
+      },
+      '.Input:focus': {
+        border: '1px solid hsl(20, 100%, 50%)',
+        boxShadow: '0 0 0 1px hsl(20, 100%, 50%)',
+      },
+      '.Label': {
+        fontWeight: '500',
+      },
+    },
+  };
+
+  const paymentElementOptions: StripeElementsOptions = {
+    layout: {
+      type: 'tabs',
+      defaultCollapsed: false,
+    },
+    fields: {
+      billingDetails: {
+        name: 'auto',
+        email: 'auto',
+        phone: 'auto',
+      },
+    },
+    business: {
+      name: 'StreamVault',
+    },
+    appearance,
+  };
+
   return (
     <div className="space-y-6">
-      <PaymentElement 
-        options={{
-          layout: "tabs",
-          appearance: {
-            theme: 'stripe',
-            variables: {
-              colorPrimary: 'hsl(var(--primary))',
-              colorBackground: 'hsl(var(--background))',
-              colorText: 'hsl(var(--foreground))',
-              colorDanger: 'hsl(var(--destructive))',
-              fontFamily: 'var(--font-inter)',
-              borderRadius: '0.5rem',
-              spacingUnit: '4px',
-            },
-          },
-        }}
-      />
+      <PaymentElement options={paymentElementOptions} />
       <Button 
         type="submit"
         disabled={!stripe || isLoading}
